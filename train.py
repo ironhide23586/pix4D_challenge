@@ -6,6 +6,7 @@ from glob import glob
 import torch
 import torch.nn as nn
 import numpy as np
+import matplotlib.pyplot as plt
 
 from fcn_model.convnet import FCN
 from fcn_model.preprocessing import DataReader, preprocess_data
@@ -77,6 +78,9 @@ if __name__ == '__main__':
             torch.save(model.state_dict(), save_path)
             max_iou = iou
 
+    loss_plot = []
+    iou_plot = []
+
     while data_reader_train.total_batch_iters < TOTAL_ITERS:
         x, y = data_reader_train.get_data(batch_size=BATCH_SIZE)
         x_pp, y_pp = preprocess_data(x, y, normalize=False)
@@ -85,6 +89,7 @@ if __name__ == '__main__':
 
         outputs = model(x_torch)
         loss = loss_op(outputs, y_torch)
+        loss_plot.append([data_reader_train.total_batch_iters, loss.item()])
 
         optimizer.zero_grad()
         loss.backward()
@@ -93,6 +98,14 @@ if __name__ == '__main__':
         print('Iter', data_reader_train.total_batch_iters, 'loss =', loss)
 
         if data_reader_train.total_batch_iters % EVAL_FREQ == 0:
+            losses = np.array(loss_plot)
+
+            plt.clf()
+            plt.plot(losses[:, 0], losses[:, 1])
+            plt.xlabel('Training Iterations')
+            plt.ylabel('Cross Entropy Loss')
+            plt.savefig('loss_plot.png')
+
             with torch.no_grad():
                 y_val_preds = np.array([model.infer_softmax(x_val_torch[i])[0].cpu().numpy().argmax(axis=0)
                                         for i in range(EVAL_BATCH_SIZE)])
@@ -101,7 +114,17 @@ if __name__ == '__main__':
                 union = y_val_truth + y_val_preds
                 union[union > 0] = 1
                 union_count = union.sum()
+
                 iou = intersection_count / union_count
+                iou_plot.append([data_reader_train.total_batch_iters, iou])
+                iou_plot_np = np.array(iou_plot)
+
+                plt.clf()
+                plt.plot(iou_plot_np[:, 0], iou_plot_np[:, 1])
+                plt.xlabel('Training Iterations')
+                plt.ylabel('Intersection Over Union (IOU)')
+                plt.savefig('iou_plot.png')
+
                 print('IOU measure =', iou)
                 if iou > max_iou:
                     save_path = '_'.join([model_save_path, str(iou) + 'iou',
