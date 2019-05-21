@@ -45,7 +45,7 @@ if __name__ == '__main__':
     model = FCN().to(device)
 
     loss_op = nn.CrossEntropyLoss().cuda()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARN_RATE)
 
     max_iou = -1
     force_makedir(MODEL_SAVE_DIR)

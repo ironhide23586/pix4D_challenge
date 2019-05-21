@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 
-class FCN(nn.Module):
+class FCN(nn.Module):  # Class encapsulating the Fully Convolutional Network for segmentation
 
     def __init__(self):
         super(FCN, self).__init__()
@@ -32,6 +32,7 @@ class FCN(nn.Module):
             self.layers[3]
         )
 
+        # Used for inference (not for training, as CrossEntropy Layer handles softmax)
         self.softmax_layer = nn.Softmax2d()
 
     def forward(self, x):

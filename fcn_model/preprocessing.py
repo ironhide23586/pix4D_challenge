@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 
 
-class DataReader:
+class DataReader:  # This class encapsulates generation of crops for training
 
     def __init__(self, dir):
         self.x_path = dir + os.sep + 'rgb.png'
@@ -38,22 +38,32 @@ class DataReader:
 
             mask = y_tmp[:, :, 0]
             postive_frac = mask[mask < 255].shape[0] / mask[mask==255].shape[0]
-            if postive_frac > 0.:
+            if postive_frac > 0.:  # Rejecting images with no building mask
                 x.append(np.array(x_elem)[:, :, :3])
                 y.append(y_tmp)
                 self.total_batch_iters += 1
         x = np.array(x)
         y = np.array(y)
-        return x, y
+        return x, y  # Random crops of input images + labels also rotated randomly
 
 
-def mono2multi_channel_tiler(v, channels=3):
+def mono2multi_channel_tiler(v, channels=3):  # Tiles a single channel image to multi-channel
     v_tiled = np.array([np.rollaxis(np.tile(v_, [channels, 1, 1]), 0, 3) for v_ in v])
     return v_tiled
 
 
-def preprocess_data(x, y, normalize=True):
+def preprocess_data(x, y, normalize=False):
+    x_pp = preprocess_data_x(x, normalize=normalize)
+    masks = np.array([np.rollaxis(np.array([y_[:, :, 0], 255 - y_[:, :, 0]]), 0, 3) for y_ in y])
+    masks[masks > 0] = 1  # channel 1 is one on building pixels
+    masks = masks.astype(np.float32)
+    masks = np.rollaxis(masks, 3, 1)[:, 1, :, :]
+    return x_pp, masks
+
+
+def preprocess_data_x(x, normalize=False):
     x_pp = x / 255.
+    x_pp = x_pp[:, :, :, :3]
     if normalize:
         # channel_means = np.array([x_pp_.mean(axis=0).mean(axis=0) for x_pp_ in x_pp])
         pixelwise_means = np.array([x_pp_.mean(axis=2) for x_pp_ in x_pp])
@@ -62,9 +72,5 @@ def preprocess_data(x, y, normalize=True):
         pixelwise_stds_tiled = mono2multi_channel_tiler(pixelwise_stds)
         filt = pixelwise_stds_tiled > 0
         x_pp[filt] = (x_pp[filt] - pixelwise_means_tiled[filt]) / pixelwise_stds_tiled[filt]
-    masks = np.array([np.rollaxis(np.array([y_[:, :, 0], 255 - y_[:, :, 0]]), 0, 3) for y_ in y])
-    masks[masks > 0] = 1  # channel 1 is one on building pixels
-    masks = masks.astype(np.float32)
     x_pp = np.rollaxis(x_pp, 3, 1)  # changing from NHWC to NCHW for Torch
-    masks = np.rollaxis(masks, 3, 1)[:, 1, :, :]
-    return x_pp, masks
+    return x_pp
