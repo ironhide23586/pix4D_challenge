@@ -94,4 +94,4 @@ if __name__ == '__main__':
     fcn_inferer = FCN_Infer()
     im_segmask = fcn_inferer.infer_img(im)
 
-    Image.fromarray(im_segmask).save(DATA_DIR + os.sep + 'pred.png')
+    Image.fromarray(im_segmask).save('predictions.jpg')
